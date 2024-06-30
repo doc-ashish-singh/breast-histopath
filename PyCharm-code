@@ -1,0 +1,166 @@
+# Importing libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import missingno as msno
+
+import warnings
+warnings.filterwarnings('ignore')
+
+plt.style.use('ggplot')
+
+df = pd.read_csv('../input/breast-cancer-wisconsin-data/data.csv')
+
+df.drop(['id', 'Unnamed: 32'], axis = 1, inplace = True)
+
+df.diagnosis.unique()
+
+df['diagnosis'] = df['diagnosis'].apply(lambda val: 1 if val == 'M' else 0)
+
+df.head()
+
+df.describe()
+
+df.info()
+
+df.isna().sum()
+
+msno.bar(df)
+
+plt.figure(figsize = (20, 15))
+plotnumber = 1
+
+for column in df:
+    if plotnumber <= 30:
+        ax = plt.subplot(5, 6, plotnumber)
+        sns.distplot(df[column])
+        plt.xlabel(column)
+        
+    plotnumber += 1
+
+plt.tight_layout()
+plt.show()
+
+# heatmap 
+plt.figure(figsize = (20, 12))
+corr = df.corr()
+mask = np.triu(np.ones_like(corr, dtype = bool))
+sns.heatmap(corr, mask = mask, linewidths = 1, annot = True, fmt = ".2f")
+plt.show()
+
+# removing highly correlated features
+corr_matrix = df.corr().abs() 
+mask = np.triu(np.ones_like(corr_matrix, dtype = bool))
+tri_df = corr_matrix.mask(mask)
+to_drop = [x for x in tri_df.columns if any(tri_df[x] > 0.92)]
+df = df.drop(to_drop, axis = 1)
+print(f"The reduced dataframe has {df.shape[1]} columns.")
+
+X = df.drop('diagnosis', axis = 1)
+y = df['diagnosis']
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.30, random_state = 0)
+
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+from sklearn.linear_model import LogisticRegression
+
+log_reg = LogisticRegression()
+log_reg.fit(X_train, y_train)
+
+y_pred = log_reg.predict(X_test)
+
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+print(accuracy_score(y_train, log_reg.predict(X_train)))
+
+log_reg_acc = accuracy_score(y_test, log_reg.predict(X_test))
+print(log_reg_acc)
+
+print(confusion_matrix(y_test, y_pred))
+
+print(classification_report(y_test, y_pred))
+
+#KNN
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier()
+knn.fit(X_train, y_train)
+
+y_pred = knn.predict(X_test)
+
+print(accuracy_score(y_train, knn.predict(X_train)))
+
+knn_acc = accuracy_score(y_test, knn.predict(X_test))
+print(knn_acc)
+
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+#SVC
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+
+svc = SVC()
+parameters = {
+    'gamma' : [0.0001, 0.001, 0.01, 0.1],
+    'C' : [0.01, 0.05, 0.5, 0.1, 1, 10, 15, 20]
+}
+
+grid_search = GridSearchCV(svc, parameters)
+grid_search.fit(X_train, y_train)
+
+grid_search.best_params_
+grid_search.best_score_
+
+svc = SVC(C = 10, gamma = 0.01)
+svc.fit(X_train, y_train)
+
+y_pred = svc.predict(X_test)
+
+print(accuracy_score(y_train, svc.predict(X_train)))
+svc_acc = accuracy_score(y_test, svc.predict(X_test))
+print(svc_acc)
+
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+#Random_Forest
+
+from sklearn.ensemble import RandomForestClassifier
+
+rand_clf = RandomForestClassifier(criterion = 'entropy', max_depth = 11, max_features = 'auto', min_samples_leaf = 2, min_samples_split = 3, n_estimators = 130)
+rand_clf.fit(X_train, y_train)
+
+y_pred = rand_clf.predict(X_test)
+
+print(accuracy_score(y_train, rand_clf.predict(X_train)))
+
+ran_clf_acc = accuracy_score(y_test, y_pred)
+print(ran_clf_acc)
+
+print(confusion_matrix(y_test, y_pred))
+
+print(classification_report(y_test, y_pred))
+
+#XGB
+
+from xgboost import XGBClassifier 
+xgb = XGBClassifier(objective = 'binary:logistic', learning_rate = 0.5, max_depth = 5, n_estimators = 180)
+xgb.fit(X_train, y_train)
+
+y_pred = xgb.predict(X_test)
+print(accuracy_score(y_train, xgb.predict(X_train)))
+
+xgb_acc = accuracy_score(y_test, y_pred)
+print(xgb_acc)
+
+print(confusion_matrix(y_test, y_pred))
+
+print(classification_report(y_test, y_pred))
